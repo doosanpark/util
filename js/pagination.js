@@ -14,6 +14,9 @@
  * - Local_Page.attachDataToTable = function(data, index)		//오버로딩한 attachDataToTable 함수에 기능 구현
  * 
  * >>>> 예)
+ * 
+ * var Local_Page; 
+ * 
  * //테이블 페이지네이션 초기화
  * function initPagination() {
  *   //페이지네이션 상속
@@ -27,9 +30,9 @@
  *	
  *		var html = "";
  *	
- *		html += '<tr id="group' + index + '">                                                                                                                   ';
- *		html += '	<td id="groupId">' + data.groupId + '</td>                                                   ';
- *		html += '</tr>                                                                                                                                     		';
+ *		html += '<tr id="group' + index + '">                                ';
+ *		html += '	<td id="groupId">' + data.groupId + '</td>               ';
+ *		html += '</tr>                                                       ';
  *		
  *		return html;
  *	 }
@@ -41,7 +44,7 @@
  * - 다음 내용 복사/붙여넣기 해서 이용 가능 
  * 
  * >>>> 핵심함수 
- * - Local_Page.setPagination  //response 데이터 추출 및 pagination 기능 구현 함수
+ * - Local_Page.setPage  //response 데이터 추출 및 pagination 기능 구현 함수
  * 
  * >>>> response 자료형태
  * List[Map<String, String>]
@@ -50,9 +53,9 @@
  * 	$.ajax({
  *		url: "",
  *		type: "",
- *		success: function(response) {
+ *		success: function(res) {
  * 			//데이블 데이터 추출 및 pagination 기능 구현 함수
- * 			Local_Page.setPage(response);
+ * 			Local_Page.setPage(res);
  * 		},
  * 		error: function(error) {}
  * 	}) 
@@ -173,7 +176,7 @@ GLOBAL_PAGINATION.prototype.controlPagingDesign = function() {
 	//'>', '>>' 버튼 조작
 	html += this.controlNextArrowDesign(pageParam);//pageName);
 	var navId = this.navId
-	var tagInfo = "#" + navId + " #pages";
+	var tagInfo = "#" + navId + " ul";
 	$(tagInfo).html(html);
 
 }
@@ -235,7 +238,7 @@ GLOBAL_PAGINATION.prototype.setItemCntOnPage = function(dataCnt) {
 }
 
 /**
-  * response 데이터로부터 테이블 데이터 추출
+  * 모든 테이블, 페이징 정렬 함수 
   */
 GLOBAL_PAGINATION.prototype.setPagination = function() {
 
@@ -247,10 +250,10 @@ GLOBAL_PAGINATION.prototype.setPagination = function() {
 	countVal *= 1;
 
 	var tbody = "#" + this.tableId + " tbody";
-	if (dataList.length === 0) {
+	if (dataList === undefined || dataList.length === 0) {
 		var html = "";
 		html += '<tr class="nodata">										';
-		html += '	<td class="no_result" colspan="7">평가그룹이 없습니다.</td>   ';
+		html += '	<td class="no_result" colspan="100">검색결과가 없습니다.</td>   ';
 		html += '</tr>                                                      ';
 		$(tbody).html(html);
 		return;
@@ -269,9 +272,8 @@ GLOBAL_PAGINATION.prototype.setPagination = function() {
 	for (var i = startIndexInPage; i < lastIndexInPage; i++) {
 		html += this.attachDataToTable(dataList[i], i);
 	}
-
-	var tableId = this.tableId;
-	$("#" + tableId + " tbody").append(html);
+	
+	$(tbody).append(html);
 
 	//페이지네이션 컨트롤
 	this.controlPagingDesign();
@@ -320,10 +322,149 @@ GLOBAL_PAGINATION.prototype.moveFirstPage = function() {
 //테이블 데이터 리셋
 GLOBAL_PAGINATION.prototype.resetTable = function() {
 	var tbody = "#" + this.tableId + " tbody";
-	console.log("tbody", tbody)
 	var html = "";
 	html += '<tr class="nodata">                                                 ';
-	html += '	<td class="no_result" colspan="6">검색결과가 없습니다.</td>     		';
+	html += '	<td class="no_result" colspan="100">검색결과가 없습니다.</td>     		';
 	html += '</tr>                                                               ';
 	$(tbody).html(html);
+}
+
+
+
+GLOBAL_PAGINATION.prototype.sortTbable = function(t, className){
+	
+	var liList =  $(t).children();
+	var ascendingBtn = $(liList[0]).children()[0];
+	var descendingBtn = $(liList[1]).children()[0];
+	var fieldName = $(t).attr("name");
+	if($(ascendingBtn).hasClass(className) === true){
+		//오름차순일 때 내림차순으로 변경
+		$(ascendingBtn).removeClass(className);
+		$(descendingBtn).addClass(className);
+		
+		this.descendingData(fieldName);
+	} else if($(descendingBtn).hasClass(className) === true){
+		//오름차순일 때 내림차순으로 변경
+		$(ascendingBtn).addClass(className);
+		$(descendingBtn).removeClass(className);
+		
+		this.ascendingData(fieldName);
+	} else {
+		
+		this.detachClassAll(t, className)
+		
+		//오름차순일 때 내림차순으로 변경
+		$(ascendingBtn).addClass(className);
+		$(descendingBtn).removeClass(className);
+		
+		this.ascendingData(fieldName);
+	}
+}
+
+// siblings 클래스에서 특정 클래스 제거
+GLOBAL_PAGINATION.prototype.detachClassAll = function(t, className){
+	var thList = $(t).parent().siblings();
+	
+	$(thList).each(function(index, th){
+		var ul = $(th).children()[0];
+		var liList = $(ul).children();
+		
+		$(liList).each(function(index, li){
+			var item = $(li).children()[0];
+			$(item).removeClass(className);
+		})
+	})
+}
+
+
+//데이터 타입 파악 1.문자열, 2.숫자, 3.그 외 문자열
+GLOBAL_PAGINATION.prototype.checkDataType = function (data){
+	var tmpData = data;
+	tmpData *= 1;    
+	var isInt = tmpData; 
+    if(isNaN(isInt) !== true){
+		return "int";
+	
+        //return isInt;			//숫자로 변환 출력
+    }
+    var isDate = Date.parse(data);
+    
+    if(isNaN(isDate) !== true){
+		return "date";
+	
+        //return to_date(data);	//날짜로 변환 출력
+    }
+    else {
+		return "string";
+	
+        //return data;			//문자열 출력
+    }
+}
+
+//문자열 오름차순 정렬
+//sortingField로 객체의 키값 사용
+GLOBAL_PAGINATION.prototype.ascendingData = function (sortingField){
+	var dataList = this.dataList;
+	if(dataList !== undefined){
+	var checkData = dataList[0][sortingField];
+	
+	var dataType = this.checkDataType(checkData); 
+	if(dataType === "int"){
+		//숫자 정렬
+		dataList.sort(function (a,b){
+			return a[sortingField] - b[sortingField]; 
+		})
+	} else if(dataType === "date"){
+		//날짜 정렬
+		dataList.sort(function(a, b) {
+			var dateA = new Date(a[sortingField]).getTime();
+			var dateB = new Date(b[sortingField]).getTime();
+			return dateA > dateB ? 1 : -1;
+		})
+	} else if(dataType === "string"){
+		//문자열 정렬
+		dataList = dataList.sort(function (a,b){
+			return a[sortingField] < b[sortingField] ? -1 : 1;
+		});
+	}
+	this.dataList = dataList;
+	this.setPagination();
+	}
+}
+
+//문자열 내림차순 정렬
+//sortingField로 객체의 키값 사용
+GLOBAL_PAGINATION.prototype.descendingData = function (sortingField){
+	var dataList = this.dataList;
+		if(dataList !== undefined){
+			var checkData;
+			for(var i = 0; i < dataList.lenth; i++){
+				if(checkData !== undefined){
+					checkData = dataList[i][sortingField];
+				}
+			}
+		
+		var dataType = this.checkDataType(checkData); 
+		if(dataType === "int"){
+			//숫자 정렬
+			dataList.sort(function (a,b){
+				return b[sortingField] - a[sortingField]; 
+			})
+		} else if(dataType === "date"){
+			//날짜 정렬
+			dataList.sort(function(a, b) {
+				var dateA = new Date(a[sortingField]).getTime();
+				var dateB = new Date(b[sortingField]).getTime();
+				return dateA < dateB ? 1 : -1;
+			})
+		} else if(dataType === "string"){
+			
+			//문자열 정렬
+			dataList = dataList.sort(function (b,a){
+				return a[sortingField] < b[sortingField] ? -1 : 1;
+			});
+			
+		}
+	}
+	this.setPagination();
 }
